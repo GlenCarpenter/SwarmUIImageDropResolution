@@ -10,7 +10,6 @@ A [SwarmUI](https://github.com/mcmonkeyprojects/SwarmUI) extension that automati
 - **Master toggle**: A checkbox ("Update output resolution to match file") enables or disables all resolution updates on the fly — covers both image prompt drops and Init Image.
 - **Side Length slider**: A slider next to the master toggle lets you set the target side length (64–4096, default 1024). The image is scaled so its total pixel area approximates `side length × side length`.
 - **Resize toggle**: A second toggle on the Side Length slider controls whether the image itself is resized to the target dimensions. When off, the exact original dimensions are used to update the resolution inputs without resampling the image.
-- **Image replace**: Dropping an image directly onto an existing prompt image replaces it in place rather than appending a new one, with a white outline preview shown while hovering.
 
 ## Installation
 
