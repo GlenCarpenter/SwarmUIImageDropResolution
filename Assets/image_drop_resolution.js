@@ -36,7 +36,7 @@
         document.head.appendChild(style);
     }
 
-    /** Ensures the dropzone has a toggle for resolution updates. */
+    /** Ensures the dropzone has a toggle and side-length slider for resolution updates. */
     function ensureResolutionToggle() {
         if (document.getElementById('image_drop_resolution_toggle')) {
             return;
@@ -46,30 +46,62 @@
         if (!promptExtraArea || !promptImageArea) {
             return;
         }
-        let toggleWrap = document.createElement('div');
-        toggleWrap.className = 'form-check form-switch';
-        toggleWrap.innerHTML = `<input type="checkbox" class="form-check-input" id="image_drop_resolution_toggle" checked>
+        let DEFAULT_SIDE = 1024;
+        let MIN_SIDE = 64;
+        let MAX_SIDE = 4096;
+        let STEP = 64;
+        let rangePercent = ((DEFAULT_SIDE - MIN_SIDE) / (MAX_SIDE - MIN_SIDE) * 100).toFixed(2);
+        let masterToggleWrap = document.createElement('div');
+        masterToggleWrap.className = 'form-check form-switch';
+        masterToggleWrap.innerHTML = `<input type="checkbox" class="form-check-input" id="image_drop_resolution_toggle" checked autocomplete="off">
 <label class="form-check-label" for="image_drop_resolution_toggle">Update output resolution to match file</label>`;
-        promptExtraArea.appendChild(toggleWrap);
+        promptExtraArea.appendChild(masterToggleWrap);
+        let sliderBox = document.createElement('div');
+        sliderBox.className = 'auto-input auto-slider-box';
+        sliderBox.style.width = '400px';
+        sliderBox.innerHTML = `
+<label>
+    <span class="auto-input-name">
+        <span class="form-check form-switch toggle-switch display-inline-block" title="Resize image to target side length" onclick="doToggleEnable('image_drop_resolution_side_length')" onchange="doToggleEnable('image_drop_resolution_side_length')">
+            <input class="auto-slider-toggle form-check-input" type="checkbox" id="image_drop_resolution_side_length_toggle" checked autocomplete="off">
+            <div class="auto-slider-toggle-content"></div>
+        </span>
+        Side Length
+    </span>
+</label>
+<input class="auto-slider-number" type="number" id="image_drop_resolution_side_length" value="${DEFAULT_SIDE}" min="${MIN_SIDE}" max="${MAX_SIDE}" step="${STEP}" autocomplete="off" onchange="autoNumberWidth(this)">
+<br>
+<div class="auto-slider-range-wrapper" style="--range-value: ${rangePercent}%">
+    <input class="auto-slider-range" type="range" id="image_drop_resolution_side_length_rangeslider" value="${DEFAULT_SIDE}" min="${MIN_SIDE}" max="${MAX_SIDE}" step="${STEP}" autocomplete="off" oninput="updateRangeStyle(this)" onchange="updateRangeStyle(this)">
+</div>`;
+        promptExtraArea.appendChild(sliderBox);
+        if (typeof enableSliderForBox == 'function') {
+            enableSliderForBox(sliderBox);
+        }
     }
 
-    // Init image resolution updates are always enabled (no toggle needed)
-
-    /** Returns whether resolution should be updated from dropped files. */
-    function shouldUpdateResolutionFromFile() {
+    /** Returns whether resolution should be updated from dropped files or init image. */
+    function shouldUpdateResolution() {
         let toggle = document.getElementById('image_drop_resolution_toggle');
         return !toggle || toggle.checked;
     }
 
-    /** Returns whether resolution should be updated from init image files. */
-    function shouldUpdateResolutionFromInitImage() {
-        // Always enabled for init images
-        return true;
+    /** Returns whether images should be resized to the target side length (vs retained at exact dimensions). */
+    function shouldResizeToTarget() {
+        let toggle = document.getElementById('image_drop_resolution_side_length_toggle');
+        return !toggle || toggle.checked;
     }
 
-    /** Calculate dimensions to approximately 1 megapixel while maintaining aspect ratio and ensuring divisibility by 16. */
-    function calculateOptimalDimensions(width, height) {
-        const TARGET_PIXELS = 1024 * 1024; // 1 megapixel
+    /** Returns the target side length from the slider, defaulting to 1024. */
+    function getTargetSideLength() {
+        let input = document.getElementById('image_drop_resolution_side_length');
+        let val = input ? parseInt(input.value) : 1024;
+        return (isNaN(val) || val < 64) ? 1024 : val;
+    }
+
+    /** Calculate dimensions scaled to approximately targetSideLength^2 pixels while maintaining aspect ratio and ensuring divisibility by 16. */
+    function calculateOptimalDimensions(width, height, targetSideLength = 1024) {
+        const TARGET_PIXELS = targetSideLength * targetSideLength;
         const DIVISOR = 16;
 
         // Calculate current area
@@ -239,7 +271,7 @@
 
                 // Check if this is the init image input and type is image or video
                 let initImageInput = document.getElementById('input_initimage');
-                if (initImageInput && elem === initImageInput && type === 'image' && shouldUpdateResolutionFromInitImage()) {
+                if (initImageInput && elem === initImageInput && type === 'image' && shouldUpdateResolution()) {
                     // Load the image to get dimensions
                     let img = new Image();
                     await new Promise((resolve, reject) => {
@@ -251,22 +283,31 @@
                     });
 
                     if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                        // Calculate optimal dimensions (scaled to ~1MP, divisible by 16)
-                        let optimal = calculateOptimalDimensions(img.naturalWidth, img.naturalHeight);
+                        let targetWidth, targetHeight;
 
-                        // Resize the image
-                        try {
-                            finalSrc = await resizeImageDataURL(src, optimal.width, optimal.height);
-                        } catch (err) {
-                            console.error('[ImageDropResolution] Failed to resize init image, using original:', err);
+                        if (shouldResizeToTarget()) {
+                            let optimal = calculateOptimalDimensions(img.naturalWidth, img.naturalHeight, getTargetSideLength());
+                            targetWidth = optimal.width;
+                            targetHeight = optimal.height;
+                            try {
+                                finalSrc = await resizeImageDataURL(src, targetWidth, targetHeight);
+                            } catch (err) {
+                                console.error('[ImageDropResolution] Failed to resize init image, using original:', err);
+                                targetWidth = img.naturalWidth;
+                                targetHeight = img.naturalHeight;
+                            }
+                        }
+                        else {
+                            targetWidth = img.naturalWidth;
+                            targetHeight = img.naturalHeight;
                         }
 
                         // Update resolution inputs
                         let inputWidth = document.getElementById('input_width');
                         let inputHeight = document.getElementById('input_height');
                         if (inputWidth && inputHeight) {
-                            inputWidth.value = optimal.width;
-                            inputHeight.value = optimal.height;
+                            inputWidth.value = targetWidth;
+                            inputHeight.value = targetHeight;
                             triggerChangeFor(inputWidth);
                             triggerChangeFor(inputHeight);
                         }
@@ -322,7 +363,7 @@
         }, true);
     }
 
-    /** Replaces the hovered prompt image instead of appending a new one. */
+    /** Replaces the hovered prompt image instead of appending a new one. The file has already been processed (resized/kept exact) by the caller. */
     async function replacePromptImage(targetContainer, file) {
         let imageObject = targetContainer ? targetContainer.querySelector('.alt-prompt-image') : null;
         if (!imageObject) {
@@ -330,68 +371,64 @@
             return;
         }
 
-        // Read the file and resize if needed
         let reader = new FileReader();
-        reader.onload = async (e) => {
+        reader.onload = (e) => {
             if (!targetContainer.isConnected) {
                 origImagePromptAddImage(file);
                 return;
             }
-
             let data = e.target.result;
-
-            // Load image to get dimensions and resize if needed
-            let img = new Image();
-            img.onload = async () => {
-                let finalData = data;
-
-                // Calculate optimal dimensions and resize
-                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                    let optimal = calculateOptimalDimensions(img.naturalWidth, img.naturalHeight);
-                    try {
-                        finalData = await resizeImageDataURL(data, optimal.width, optimal.height);
-                    } catch (err) {
-                        console.error('[ImageDropResolution] Failed to resize image, using original:', err);
-                    }
-                }
-
-                imageObject.src = finalData;
-                imageObject.height = 128;
-                imageObject.dataset.filedata = finalData;
-                let clearButton = document.getElementById('alt_prompt_image_clear_button');
-                if (clearButton) {
-                    clearButton.style.display = '';
-                }
-                if (window.showRevisionInputs) {
-                    showRevisionInputs(true);
-                }
-                if (window.genTabLayout && genTabLayout.altPromptSizeHandle) {
-                    genTabLayout.altPromptSizeHandle();
-                }
-            };
-            img.src = data;
+            imageObject.src = data;
+            imageObject.height = 128;
+            imageObject.dataset.filedata = data;
+            let clearButton = document.getElementById('alt_prompt_image_clear_button');
+            if (clearButton) {
+                clearButton.style.display = '';
+            }
+            if (window.showRevisionInputs) {
+                showRevisionInputs(true);
+            }
+            if (window.genTabLayout && genTabLayout.altPromptSizeHandle) {
+                genTabLayout.altPromptSizeHandle();
+            }
         };
         reader.readAsDataURL(file);
     }
 
-    /** Updates the generation resolution to match the dropped image and returns the resized file. */
+    /** Updates the generation resolution to match the dropped image and returns the (possibly resized) file. */
     async function updateResolutionFromImage(file) {
         return new Promise((resolve, reject) => {
             let img = new Image();
             let reader = new FileReader();
             reader.onload = async (e) => {
                 img.onload = async () => {
-                    let resizedFile = file;
+                    let outFile = file;
 
                     if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                        // Calculate optimal dimensions (scaled to ~1MP, divisible by 16)
-                        let optimal = calculateOptimalDimensions(img.naturalWidth, img.naturalHeight);
+                        let targetWidth, targetHeight;
+
+                        if (shouldResizeToTarget()) {
+                            let optimal = calculateOptimalDimensions(img.naturalWidth, img.naturalHeight, getTargetSideLength());
+                            targetWidth = optimal.width;
+                            targetHeight = optimal.height;
+                            try {
+                                outFile = await resizeImageFile(file, targetWidth, targetHeight);
+                            } catch (err) {
+                                console.error('[ImageDropResolution] Failed to resize file, using original:', err);
+                                targetWidth = img.naturalWidth;
+                                targetHeight = img.naturalHeight;
+                            }
+                        }
+                        else {
+                            targetWidth = img.naturalWidth;
+                            targetHeight = img.naturalHeight;
+                        }
 
                         let inputWidth = document.getElementById('input_width');
                         let inputHeight = document.getElementById('input_height');
                         if (inputWidth && inputHeight) {
-                            inputWidth.value = optimal.width;
-                            inputHeight.value = optimal.height;
+                            inputWidth.value = targetWidth;
+                            inputHeight.value = targetHeight;
                             triggerChangeFor(inputWidth);
                             triggerChangeFor(inputHeight);
                         }
@@ -400,16 +437,9 @@
                             inputAspectRatio.value = 'Custom';
                             triggerChangeFor(inputAspectRatio);
                         }
-
-                        // Resize the file
-                        try {
-                            resizedFile = await resizeImageFile(file, optimal.width, optimal.height);
-                        } catch (err) {
-                            console.error('[ImageDropResolution] Failed to resize file, using original:', err);
-                        }
                     }
 
-                    resolve(resizedFile);
+                    resolve(outFile);
                 };
                 img.onerror = reject;
                 img.src = e.target.result;
@@ -426,7 +456,7 @@
         let finalFile = file;
 
         // Resize and update resolution if enabled
-        if (shouldUpdateResolutionFromFile()) {
+        if (shouldUpdateResolution()) {
             try {
                 finalFile = await updateResolutionFromImage(file);
             } catch (err) {
