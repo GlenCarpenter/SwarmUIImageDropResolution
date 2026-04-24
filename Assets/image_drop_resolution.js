@@ -36,48 +36,57 @@
         document.head.appendChild(style);
     }
 
-    /** Ensures the dropzone has a toggle and side-length slider for resolution updates. */
-    function ensureResolutionToggle() {
-        if (document.getElementById('image_drop_resolution_toggle')) {
+    /** Registers the Image Drop Resolution parameter group in the main inputs area via postParamBuildSteps. */
+    function registerParamGroup() {
+        if (typeof postParamBuildSteps == 'undefined') {
             return;
         }
-        let promptExtraArea = document.getElementById('alt_prompt_extra_area');
-        let promptImageArea = document.getElementById('alt_prompt_image_area');
-        if (!promptExtraArea || !promptImageArea) {
-            return;
-        }
-        let DEFAULT_SIDE = 1024;
-        let MIN_SIDE = 64;
-        let MAX_SIDE = 4096;
-        let STEP = 64;
-        let rangePercent = ((DEFAULT_SIDE - MIN_SIDE) / (MAX_SIDE - MIN_SIDE) * 100).toFixed(2);
-        let masterToggleWrap = document.createElement('div');
-        masterToggleWrap.className = 'form-check form-switch';
-        masterToggleWrap.innerHTML = `<input type="checkbox" class="form-check-input" id="image_drop_resolution_toggle" checked autocomplete="off">
-<label class="form-check-label" for="image_drop_resolution_toggle">Update output resolution to match file</label>`;
-        promptExtraArea.appendChild(masterToggleWrap);
-        let sliderBox = document.createElement('div');
-        sliderBox.className = 'auto-input auto-slider-box';
-        sliderBox.style.width = '400px';
-        sliderBox.innerHTML = `
-<label>
-    <span class="auto-input-name">
-        <span class="form-check form-switch toggle-switch display-inline-block" title="Resize image to target side length" onclick="doToggleEnable('image_drop_resolution_side_length')" onchange="doToggleEnable('image_drop_resolution_side_length')">
-            <input class="auto-slider-toggle form-check-input" type="checkbox" id="image_drop_resolution_side_length_toggle" checked autocomplete="off">
-            <div class="auto-slider-toggle-content"></div>
-        </span>
-        Side Length
-    </span>
-</label>
-<input class="auto-slider-number" type="number" id="image_drop_resolution_side_length" value="${DEFAULT_SIDE}" min="${MIN_SIDE}" max="${MAX_SIDE}" step="${STEP}" autocomplete="off" onchange="autoNumberWidth(this)">
-<br>
-<div class="auto-slider-range-wrapper" style="--range-value: ${rangePercent}%">
-    <input class="auto-slider-range" type="range" id="image_drop_resolution_side_length_rangeslider" value="${DEFAULT_SIDE}" min="${MIN_SIDE}" max="${MAX_SIDE}" step="${STEP}" autocomplete="off" oninput="updateRangeStyle(this)" onchange="updateRangeStyle(this)">
-</div>`;
-        promptExtraArea.appendChild(sliderBox);
-        if (typeof enableSliderForBox == 'function') {
-            enableSliderForBox(sliderBox);
-        }
+        postParamBuildSteps.push(() => {
+            let mainArea = document.getElementById('main_inputs_area');
+            if (!mainArea) {
+                return;
+            }
+            let DEFAULT_SIDE = 1024;
+            let MIN_SIDE = 64;
+            let MAX_SIDE = 4096;
+            let STEP = 64;
+            let rangePercent = ((DEFAULT_SIDE - MIN_SIDE) / (MAX_SIDE - MIN_SIDE) * 100).toFixed(2);
+            let groupId = 'imagedropresolution';
+            let savedState = getCookie(`group_open_${groupId}`);
+            let isOpen = savedState != 'closed';
+            let openClass = isOpen ? 'input-group-open' : 'input-group-closed';
+            let contentStyle = isOpen ? '' : ' style="display: none;"';
+            let symbol = isOpen ? '&#x2B9F;' : '&#x2B9E;';
+            let groupDiv = createDiv(`auto-group-${groupId}`, `input-group ${openClass}`,
+                `<span id="input_group_${groupId}" class="input-group-header input-group-shrinkable">` +
+                `<span class="header-label-wrap"><span class="auto-symbol">${symbol}</span>` +
+                `<span class="header-label">Image Drop Resolution</span>` +
+                `<span class="header-label-spacer"></span><span class="header-label-counter"></span>` +
+                `</span></span>` +
+                `<div class="input-group-content" id="input_group_content_${groupId}"${contentStyle}></div>`);
+            mainArea.appendChild(groupDiv);
+            let content = document.getElementById(`input_group_content_${groupId}`);
+            let masterToggleWrap = createDiv(null, 'form-check form-switch',
+                `<input type="checkbox" class="form-check-input" id="image_drop_resolution_toggle" checked autocomplete="off">` +
+                `<label class="form-check-label" for="image_drop_resolution_toggle">Update output resolution to match file</label>`);
+            content.appendChild(masterToggleWrap);
+            let sliderBox = createDiv(null, 'auto-input auto-slider-box');
+            sliderBox.style.width = '400px';
+            sliderBox.innerHTML =
+                `<label><span class="auto-input-name">` +
+                `<span class="form-check form-switch toggle-switch display-inline-block" title="Resize image to target side length" onclick="doToggleEnable('image_drop_resolution_side_length')" onchange="doToggleEnable('image_drop_resolution_side_length')">` +
+                `<input class="auto-slider-toggle form-check-input" type="checkbox" id="image_drop_resolution_side_length_toggle" checked autocomplete="off">` +
+                `<div class="auto-slider-toggle-content"></div></span>` +
+                `Side Length</span></label>` +
+                `<input class="auto-slider-number" type="number" id="image_drop_resolution_side_length" value="${DEFAULT_SIDE}" min="${MIN_SIDE}" max="${MAX_SIDE}" step="${STEP}" autocomplete="off" onchange="autoNumberWidth(this)">` +
+                `<br><div class="auto-slider-range-wrapper" style="--range-value: ${rangePercent}%">` +
+                `<input class="auto-slider-range" type="range" id="image_drop_resolution_side_length_rangeslider" value="${DEFAULT_SIDE}" min="${MIN_SIDE}" max="${MAX_SIDE}" step="${STEP}" autocomplete="off" oninput="updateRangeStyle(this)" onchange="updateRangeStyle(this)">` +
+                `</div>`;
+            content.appendChild(sliderBox);
+            if (typeof enableSliderForBox == 'function') {
+                enableSliderForBox(sliderBox);
+            }
+        });
     }
 
     /** Returns whether resolution should be updated from dropped files or init image. */
@@ -333,7 +342,6 @@
     /** Hooks drag events so direct drops on existing images preview as replacements. */
     function attachPromptImageReplaceHandlers() {
         ensureExtensionStyle();
-        ensureResolutionToggle();
         let dragArea = document.getElementById('alt_prompt_region');
         if (!dragArea) {
             return;
@@ -471,6 +479,8 @@
             origImagePromptAddImage(finalFile);
         }
     };
+
+    registerParamGroup();
 
     if (document.readyState == 'loading') {
         console.log('[ImageDropResolution] Document still loading, waiting for DOMContentLoaded...');
