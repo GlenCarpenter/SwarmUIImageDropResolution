@@ -136,31 +136,20 @@
         return { width: newWidth, height: newHeight };
     }
 
-    /** Resize an image from a data URL to specific dimensions and return a new data URL. */
+    /** Resize an image from a data URL to specific dimensions using server-side Lanczos3 resampling and return a new data URL. */
     function resizeImageDataURL(dataURL, targetWidth, targetHeight) {
         return new Promise((resolve, reject) => {
-            let img = new Image();
-            img.onload = () => {
-                let canvas = document.createElement('canvas');
-                let ctx = canvas.getContext('2d');
-
-                // Set target dimensions
-                canvas.width = targetWidth;
-                canvas.height = targetHeight;
-
-                // Draw the original image into the new dimensions
-                ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-
-                // Get the resized image as a Data URL (PNG for quality)
-                let resizedDataURL = canvas.toDataURL('image/png');
-                console.log(`[ImageDropResolution] Image resized from ${img.naturalWidth}x${img.naturalHeight} to ${targetWidth}x${targetHeight}`);
-                resolve(resizedDataURL);
-            };
-            img.onerror = (err) => {
-                console.error('[ImageDropResolution] Failed to load image for resizing:', err);
-                reject(err);
-            };
-            img.src = dataURL;
+            genericRequest('ResizeImage', { image: dataURL, width: targetWidth, height: targetHeight }, data => {
+                if (data.image) {
+                    console.log(`[ImageDropResolution] Image resized to ${targetWidth}x${targetHeight} via server (Lanczos3)`);
+                    resolve(data.image);
+                }
+                else {
+                    reject(new Error(data.error || 'Server resize returned no image'));
+                }
+            }, 0, err => {
+                reject(new Error(err));
+            });
         });
     }
 

@@ -1,7 +1,13 @@
 using SwarmUI.Core;
 using SwarmUI.Text2Image;
+using SwarmUI.Media;
+using SwarmUI.Accounts;
+using SwarmUI.WebAPI;
+using Newtonsoft.Json.Linq;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 
-namespace GlenCrawford.ImageDropResolution;
+namespace SwarmUI.Extensions.ImageDropResolution;
 
 /// <summary>Automatically sets the Resolution (width/height) to match the dimensions of an image dropped onto the prompt area.</summary>
 public class ImageDropResolutionExtension : Extension
@@ -24,9 +30,21 @@ public class ImageDropResolutionExtension : Extension
     /// <summary>Target side length for image scaling. Images are scaled so their area approximates this value squared, maintaining aspect ratio and rounding to multiples of 16.</summary>
     public static T2IRegisteredParam<int> SideLengthParam;
 
+    /// <summary>Permission group for Image Drop Resolution extension.</summary>
+    public static readonly PermInfoGroup IDRPermGroup = new("ImageDropResolution", "Permissions related to Image Drop Resolution functionality.");
+
+    /// <summary>Permission to call the server-side image resize API.</summary>
+    public static readonly PermInfo PermResizeImage = Permissions.Register(new(
+        "imagedropresolution_resize_image",
+        "Resize Image",
+        "Allows the user to call the Image Drop Resolution server-side image resize API.",
+        PermissionDefault.USER,
+        IDRPermGroup));
+
     public override void OnInit()
     {
         ScriptFiles.Add("Assets/image_drop_resolution.js");
+        API.RegisterAPICall(ResizeImage, false, PermResizeImage);
         ImageDropResolutionGroup = new("Image Drop Resolution", Toggles: true, Open: false, OrderPriority: 100, Description: "Automatically update the output resolution when an image is dropped or set as init image.");
         UpdatePromptResolutionParam = T2IParamTypes.Register<bool>(new(
             Name: "[IDR] Update Resolution To Image Prompt",
@@ -77,5 +95,44 @@ public class ImageDropResolutionExtension : Extension
             IntentionalUnused: true,
             OrderPriority: 5
         ));
+    }
+
+    /// <summary>Resizes an image to the given dimensions using Lanczos3 high-quality resampling and returns it as a PNG data URL.</summary>
+    [API.APIDescription("Resizes an image to the given dimensions using Lanczos3 high-quality resampling.",
+        """
+            "image": "data:image/png;base64,..."
+        """)]
+    public static async Task<JObject> ResizeImage(Session session,
+        [API.APIParameter("The source image as a base64 data URL.")] string image,
+        [API.APIParameter("Target width in pixels.")] int width,
+        [API.APIParameter("Target height in pixels.")] int height)
+    {
+        if (width < 1 || height < 1 || width > 16384 || height > 16384)
+        {
+            return new JObject() { ["error"] = "Invalid dimensions: width and height must each be between 1 and 16384." };
+        }
+        ImageFile imgFile;
+        try
+        {
+            imgFile = ImageFile.FromDataString(image);
+        }
+        catch (Exception)
+        {
+            return new JObject() { ["error"] = "Invalid image data." };
+        }
+        SixLabors.ImageSharp.Image isImg = imgFile.ToIS;
+        if (isImg.Width == width && isImg.Height == height)
+        {
+            return new JObject() { ["image"] = image };
+        }
+        SixLabors.ImageSharp.Image resized = isImg.Clone(ctx => ctx.Resize(new ResizeOptions()
+        {
+            Size = new Size(width, height),
+            Sampler = KnownResamplers.Lanczos3,
+            Mode = ResizeMode.Stretch
+        }));
+        byte[] pngBytes = ImageFile.ISImgToPngBytes(resized);
+        string b64 = Convert.ToBase64String(pngBytes);
+        return new JObject() { ["image"] = $"data:image/png;base64,{b64}" };
     }
 }
