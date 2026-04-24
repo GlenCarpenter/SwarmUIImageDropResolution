@@ -29,81 +29,81 @@
         style.innerHTML = `.alt-prompt-image-container.image-drop-resolution-replace-target .alt-prompt-image {
     box-shadow: 0 0 0 2px white;
 }
-.form-check-label {
-    user-select: none;
-    white-space: nowrap;
+#input_group_content_imagedropresolution {
+    flex-direction: column;
+    gap: 6px;
+}
+#input_group_content_imagedropresolution > div.auto-input {
+    flex: none;
+    min-width: unset;
+    width: 100%;
 }`;
         document.head.appendChild(style);
     }
 
-    /** Registers the Image Drop Resolution parameter group in the main inputs area via postParamBuildSteps. */
-    function registerParamGroup() {
+    /** Converts a generated auto-checkbox input to a toggle-switch style input. */
+    function convertCheckboxToToggle(elemId) {
+        let checkbox = document.getElementById(elemId);
+        if (!checkbox) {
+            return;
+        }
+        checkbox.classList.remove('auto-checkbox');
+        checkbox.classList.add('auto-slider-toggle', 'form-check-input');
+        let wrap = document.createElement('span');
+        wrap.className = 'form-check form-switch toggle-switch display-inline-block';
+        checkbox.parentNode.insertBefore(wrap, checkbox);
+        wrap.appendChild(checkbox);
+        let toggleContent = document.createElement('div');
+        toggleContent.className = 'auto-slider-toggle-content';
+        wrap.appendChild(toggleContent);
+    }
+
+    /** Registers post-param-build steps to convert boolean params to toggle-switch style. */
+    function applyToggleStyles() {
         if (typeof postParamBuildSteps == 'undefined') {
             return;
         }
         postParamBuildSteps.push(() => {
-            let mainArea = document.getElementById('main_inputs_area');
-            if (!mainArea) {
-                return;
-            }
-            let DEFAULT_SIDE = 1024;
-            let MIN_SIDE = 64;
-            let MAX_SIDE = 4096;
-            let STEP = 64;
-            let rangePercent = ((DEFAULT_SIDE - MIN_SIDE) / (MAX_SIDE - MIN_SIDE) * 100).toFixed(2);
-            let groupId = 'imagedropresolution';
-            let savedState = getCookie(`group_open_${groupId}`);
-            let isOpen = savedState != 'closed';
-            let openClass = isOpen ? 'input-group-open' : 'input-group-closed';
-            let contentStyle = isOpen ? '' : ' style="display: none;"';
-            let symbol = isOpen ? '&#x2B9F;' : '&#x2B9E;';
-            let groupDiv = createDiv(`auto-group-${groupId}`, `input-group ${openClass}`,
-                `<span id="input_group_${groupId}" class="input-group-header input-group-shrinkable">` +
-                `<span class="header-label-wrap"><span class="auto-symbol">${symbol}</span>` +
-                `<span class="header-label">Image Drop Resolution</span>` +
-                `<span class="header-label-spacer"></span><span class="header-label-counter"></span>` +
-                `</span></span>` +
-                `<div class="input-group-content" id="input_group_content_${groupId}"${contentStyle}></div>`);
-            mainArea.appendChild(groupDiv);
-            let content = document.getElementById(`input_group_content_${groupId}`);
-            let masterToggleWrap = createDiv(null, 'form-check form-switch',
-                `<input type="checkbox" class="form-check-input" id="image_drop_resolution_toggle" checked autocomplete="off">` +
-                `<label class="form-check-label" for="image_drop_resolution_toggle">Update output resolution to match file</label>`);
-            content.appendChild(masterToggleWrap);
-            let sliderBox = createDiv(null, 'auto-input auto-slider-box');
-            sliderBox.style.width = '400px';
-            sliderBox.innerHTML =
-                `<label><span class="auto-input-name">` +
-                `<span class="form-check form-switch toggle-switch display-inline-block" title="Resize image to target side length" onclick="doToggleEnable('image_drop_resolution_side_length')" onchange="doToggleEnable('image_drop_resolution_side_length')">` +
-                `<input class="auto-slider-toggle form-check-input" type="checkbox" id="image_drop_resolution_side_length_toggle" checked autocomplete="off">` +
-                `<div class="auto-slider-toggle-content"></div></span>` +
-                `Side Length</span></label>` +
-                `<input class="auto-slider-number" type="number" id="image_drop_resolution_side_length" value="${DEFAULT_SIDE}" min="${MIN_SIDE}" max="${MAX_SIDE}" step="${STEP}" autocomplete="off" onchange="autoNumberWidth(this)">` +
-                `<br><div class="auto-slider-range-wrapper" style="--range-value: ${rangePercent}%">` +
-                `<input class="auto-slider-range" type="range" id="image_drop_resolution_side_length_rangeslider" value="${DEFAULT_SIDE}" min="${MIN_SIDE}" max="${MAX_SIDE}" step="${STEP}" autocomplete="off" oninput="updateRangeStyle(this)" onchange="updateRangeStyle(this)">` +
-                `</div>`;
-            content.appendChild(sliderBox);
-            if (typeof enableSliderForBox == 'function') {
-                enableSliderForBox(sliderBox);
-            }
+            convertCheckboxToToggle('input_idrupdateresolutiontoimageprompt');
+            convertCheckboxToToggle('input_idrupdateresolutiontoinitimage');
+            convertCheckboxToToggle('input_idrresizeimageprompttosidelength');
+            convertCheckboxToToggle('input_idrresizeinitimagetosidelength');
         });
     }
 
-    /** Returns whether resolution should be updated from dropped files or init image. */
-    function shouldUpdateResolution() {
-        let toggle = document.getElementById('image_drop_resolution_toggle');
+    /** Returns whether the extension is globally enabled via the group toggle. */
+    function isExtensionEnabled() {
+        let toggle = document.getElementById('input_group_content_imagedropresolution_toggle');
         return !toggle || toggle.checked;
     }
 
-    /** Returns whether images should be resized to the target side length (vs retained at exact dimensions). */
-    function shouldResizeToTarget() {
-        let toggle = document.getElementById('image_drop_resolution_side_length_toggle');
+    /** Returns whether resolution should be updated when an image is dropped onto the image prompt area. */
+    function shouldUpdatePromptResolution() {
+        let toggle = document.getElementById('input_idrupdateresolutiontoimageprompt');
+        return !toggle || toggle.checked;
+    }
+
+    /** Returns whether resolution should be updated when an image is set as the init image. */
+    function shouldUpdateInitResolution() {
+        let toggle = document.getElementById('input_idrupdateresolutiontoinitimage');
+        return !toggle || toggle.checked;
+    }
+
+    /** Returns whether images dropped onto the image prompt area should be resized to the target side length. */
+    function shouldResizePrompt() {
+        let toggle = document.getElementById('input_idrresizeimageprompttosidelength');
+        return !toggle || toggle.checked;
+    }
+
+    /** Returns whether the init image should be resized to the target side length. */
+    function shouldResizeInit() {
+        let toggle = document.getElementById('input_idrresizeinitimagetosidelength');
         return !toggle || toggle.checked;
     }
 
     /** Returns the target side length from the slider, defaulting to 1024. */
     function getTargetSideLength() {
-        let input = document.getElementById('image_drop_resolution_side_length');
+        let input = document.getElementById('input_idrsidelength');
         let val = input ? parseInt(input.value) : 1024;
         return (isNaN(val) || val < 64) ? 1024 : val;
     }
@@ -280,7 +280,7 @@
 
                 // Check if this is the init image input and type is image or video
                 let initImageInput = document.getElementById('input_initimage');
-                if (initImageInput && elem === initImageInput && type === 'image' && shouldUpdateResolution()) {
+                if (isExtensionEnabled() && initImageInput && elem === initImageInput && type === 'image' && (shouldUpdateInitResolution() || shouldResizeInit())) {
                     // Load the image to get dimensions
                     let img = new Image();
                     await new Promise((resolve, reject) => {
@@ -292,9 +292,10 @@
                     });
 
                     if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                        let targetWidth, targetHeight;
+                        let targetWidth = img.naturalWidth;
+                        let targetHeight = img.naturalHeight;
 
-                        if (shouldResizeToTarget()) {
+                        if (shouldResizeInit()) {
                             let optimal = calculateOptimalDimensions(img.naturalWidth, img.naturalHeight, getTargetSideLength());
                             targetWidth = optimal.width;
                             targetHeight = optimal.height;
@@ -306,24 +307,22 @@
                                 targetHeight = img.naturalHeight;
                             }
                         }
-                        else {
-                            targetWidth = img.naturalWidth;
-                            targetHeight = img.naturalHeight;
-                        }
 
-                        // Update resolution inputs
-                        let inputWidth = document.getElementById('input_width');
-                        let inputHeight = document.getElementById('input_height');
-                        if (inputWidth && inputHeight) {
-                            inputWidth.value = targetWidth;
-                            inputHeight.value = targetHeight;
-                            triggerChangeFor(inputWidth);
-                            triggerChangeFor(inputHeight);
-                        }
-                        let inputAspectRatio = document.getElementById('input_aspectratio');
-                        if (inputAspectRatio) {
-                            inputAspectRatio.value = 'Custom';
-                            triggerChangeFor(inputAspectRatio);
+                        if (shouldUpdateInitResolution()) {
+                            // Update resolution inputs
+                            let inputWidth = document.getElementById('input_width');
+                            let inputHeight = document.getElementById('input_height');
+                            if (inputWidth && inputHeight) {
+                                inputWidth.value = targetWidth;
+                                inputHeight.value = targetHeight;
+                                triggerChangeFor(inputWidth);
+                                triggerChangeFor(inputHeight);
+                            }
+                            let inputAspectRatio = document.getElementById('input_aspectratio');
+                            if (inputAspectRatio) {
+                                inputAspectRatio.value = 'Custom';
+                                triggerChangeFor(inputAspectRatio);
+                            }
                         }
                     }
                 }
@@ -413,9 +412,10 @@
                     let outFile = file;
 
                     if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                        let targetWidth, targetHeight;
+                        let targetWidth = img.naturalWidth;
+                        let targetHeight = img.naturalHeight;
 
-                        if (shouldResizeToTarget()) {
+                        if (shouldResizePrompt()) {
                             let optimal = calculateOptimalDimensions(img.naturalWidth, img.naturalHeight, getTargetSideLength());
                             targetWidth = optimal.width;
                             targetHeight = optimal.height;
@@ -427,23 +427,21 @@
                                 targetHeight = img.naturalHeight;
                             }
                         }
-                        else {
-                            targetWidth = img.naturalWidth;
-                            targetHeight = img.naturalHeight;
-                        }
 
-                        let inputWidth = document.getElementById('input_width');
-                        let inputHeight = document.getElementById('input_height');
-                        if (inputWidth && inputHeight) {
-                            inputWidth.value = targetWidth;
-                            inputHeight.value = targetHeight;
-                            triggerChangeFor(inputWidth);
-                            triggerChangeFor(inputHeight);
-                        }
-                        let inputAspectRatio = document.getElementById('input_aspectratio');
-                        if (inputAspectRatio) {
-                            inputAspectRatio.value = 'Custom';
-                            triggerChangeFor(inputAspectRatio);
+                        if (shouldUpdatePromptResolution()) {
+                            let inputWidth = document.getElementById('input_width');
+                            let inputHeight = document.getElementById('input_height');
+                            if (inputWidth && inputHeight) {
+                                inputWidth.value = targetWidth;
+                                inputHeight.value = targetHeight;
+                                triggerChangeFor(inputWidth);
+                                triggerChangeFor(inputHeight);
+                            }
+                            let inputAspectRatio = document.getElementById('input_aspectratio');
+                            if (inputAspectRatio) {
+                                inputAspectRatio.value = 'Custom';
+                                triggerChangeFor(inputAspectRatio);
+                            }
                         }
                     }
 
@@ -463,8 +461,8 @@
 
         let finalFile = file;
 
-        // Resize and update resolution if enabled
-        if (shouldUpdateResolution()) {
+        // Resize and/or update resolution if enabled
+        if (isExtensionEnabled() && (shouldUpdatePromptResolution() || shouldResizePrompt())) {
             try {
                 finalFile = await updateResolutionFromImage(file);
             } catch (err) {
@@ -480,7 +478,7 @@
         }
     };
 
-    registerParamGroup();
+    applyToggleStyles();
 
     if (document.readyState == 'loading') {
         console.log('[ImageDropResolution] Document still loading, waiting for DOMContentLoaded...');
