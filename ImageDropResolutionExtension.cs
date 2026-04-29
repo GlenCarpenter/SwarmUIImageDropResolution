@@ -4,8 +4,6 @@ using SwarmUI.Media;
 using SwarmUI.Accounts;
 using SwarmUI.WebAPI;
 using Newtonsoft.Json.Linq;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Processing;
 
 namespace GlenCarpenter.Extensions.ImageDropResolutionExtension;
 
@@ -120,19 +118,6 @@ public class ImageDropResolutionExtension : Extension
         {
             return new JObject() { ["error"] = "Invalid image data." };
         }
-        SixLabors.ImageSharp.Image isImg = imgFile.ToIS;
-        if (isImg.Width == width && isImg.Height == height)
-        {
-            return new JObject() { ["image"] = image };
-        }
-        SixLabors.ImageSharp.Image resized = isImg.Clone(ctx => ctx.Resize(new ResizeOptions()
-        {
-            Size = new Size(width, height),
-            Sampler = KnownResamplers.Lanczos3,
-            Mode = ResizeMode.Stretch
-        }));
-        byte[] pngBytes = ImageFile.ISImgToPngBytes(resized);
-        string b64 = Convert.ToBase64String(pngBytes);
-        return new JObject() { ["image"] = $"data:image/png;base64,{b64}" };
+        return new JObject() { ["image"] = imgFile.Resize(width, height).AsDataString() };
     }
 }
