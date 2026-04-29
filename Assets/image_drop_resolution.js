@@ -13,6 +13,16 @@
     let origImagePromptAddImage = window.imagePromptAddImage;
     let promptImageReplaceTarget = null;
 
+    /** Maps each control element ID to its localStorage key and type. */
+    let idrPrefControls = [
+        { id: 'input_group_content_imagedropresolution_toggle', key: 'swarm_idr_enabled', isCheckbox: true },
+        { id: 'input_idrupdateresolutiontoimageprompt', key: 'swarm_idr_update_prompt_res', isCheckbox: true },
+        { id: 'input_idrupdateresolutiontoinitimage', key: 'swarm_idr_update_init_res', isCheckbox: true },
+        { id: 'input_idrresizeimageprompttosidelength', key: 'swarm_idr_resize_prompt', isCheckbox: true },
+        { id: 'input_idrresizeinitimagetosidelength', key: 'swarm_idr_resize_init', isCheckbox: true },
+        { id: 'input_idrsidelength', key: 'swarm_idr_side_length', isCheckbox: false }
+    ];
+
     if (!origImagePromptAddImage) {
         console.log('[ImageDropResolution] window.imagePromptAddImage not found, exiting');
         return;
@@ -58,6 +68,48 @@
         wrap.appendChild(toggleContent);
     }
 
+    /** Saves the current extension preference values to localStorage. */
+    function savePreferences() {
+        for (let ctrl of idrPrefControls) {
+            let elem = document.getElementById(ctrl.id);
+            if (elem) {
+                localStorage.setItem(ctrl.key, ctrl.isCheckbox ? elem.checked : elem.value);
+            }
+        }
+    }
+
+    /** Loads extension preferences from localStorage and applies them to the controls. */
+    function loadPreferences() {
+        for (let ctrl of idrPrefControls) {
+            let stored = localStorage.getItem(ctrl.key);
+            if (stored === null) {
+                continue;
+            }
+            let elem = document.getElementById(ctrl.id);
+            if (!elem) {
+                continue;
+            }
+            if (ctrl.isCheckbox) {
+                elem.checked = stored === 'true';
+                triggerChangeFor(elem);
+            }
+            else {
+                elem.value = stored;
+                triggerChangeFor(elem);
+            }
+        }
+    }
+
+    /** Attaches change listeners to extension controls to persist preferences on change. */
+    function attachPreferenceSavers() {
+        for (let ctrl of idrPrefControls) {
+            let elem = document.getElementById(ctrl.id);
+            if (elem) {
+                elem.addEventListener('change', savePreferences);
+            }
+        }
+    }
+
     /** Registers post-param-build steps to convert boolean params to toggle-switch style. */
     function applyToggleStyles() {
         if (typeof postParamBuildSteps == 'undefined') {
@@ -68,6 +120,8 @@
             convertCheckboxToToggle('input_idrupdateresolutiontoinitimage');
             convertCheckboxToToggle('input_idrresizeimageprompttosidelength');
             convertCheckboxToToggle('input_idrresizeinitimagetosidelength');
+            loadPreferences();
+            attachPreferenceSavers();
         });
     }
 
