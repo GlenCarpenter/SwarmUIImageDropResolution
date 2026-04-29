@@ -7,7 +7,7 @@ using Newtonsoft.Json.Linq;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
-namespace SwarmUI.Extensions.ImageDropResolution;
+namespace GlenCarpenter.Extensions.ImageDropResolutionExtension;
 
 /// <summary>Automatically sets the Resolution (width/height) to match the dimensions of an image dropped onto the prompt area.</summary>
 public class ImageDropResolutionExtension : Extension
