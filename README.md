@@ -18,7 +18,7 @@ A [SwarmUI](https://github.com/mcmonkeyprojects/SwarmUI) extension that automati
 
 ## Installation
 
-1. Navigate to your SwarmUI `Extensions` folder.
+1. Navigate to your `SwarmUI\src\Extensions` folder.
 2. Clone this repository:
    ```
    git clone https://github.com/GlenCarpenter/SwarmUIImageDropResolution.git
