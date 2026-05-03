@@ -49,7 +49,6 @@ public class ImageDropResolutionExtension : Extension
             Description: "When enabled, dropping an image onto the image prompt area will update the output resolution to match the image dimensions.",
             Default: "true",
             Group: ImageDropResolutionGroup,
-            HideFromMetadata: true,
             IntentionalUnused: true,
             OrderPriority: 1
         ));
@@ -58,7 +57,6 @@ public class ImageDropResolutionExtension : Extension
             Description: "When enabled, setting an init image will update the output resolution to match the image dimensions.",
             Default: "true",
             Group: ImageDropResolutionGroup,
-            HideFromMetadata: true,
             IntentionalUnused: true,
             OrderPriority: 2
         ));
@@ -67,7 +65,6 @@ public class ImageDropResolutionExtension : Extension
             Description: "When enabled, images dropped onto the image prompt area are resized so their area approximates the target side length squared.",
             Default: "true",
             Group: ImageDropResolutionGroup,
-            HideFromMetadata: true,
             IntentionalUnused: true,
             OrderPriority: 3
         ));
@@ -76,7 +73,6 @@ public class ImageDropResolutionExtension : Extension
             Description: "When enabled, images set as the init image are resized so their area approximates the target side length squared.",
             Default: "true",
             Group: ImageDropResolutionGroup,
-            HideFromMetadata: true,
             IntentionalUnused: true,
             OrderPriority: 4
         ));
@@ -89,7 +85,6 @@ public class ImageDropResolutionExtension : Extension
             Step: 64,
             Group: ImageDropResolutionGroup,
             ViewType: ParamViewType.SLIDER,
-            HideFromMetadata: true,
             IntentionalUnused: true,
             OrderPriority: 5
         ));
